@@ -1,17 +1,24 @@
 package com.example.debtapp;
 
 
+import android.app.Activity;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ProgressBar;
 
 import com.example.debtapp.Contracts.Debt;
 import com.example.debtapp.Contracts.DebtFactory;
@@ -23,10 +30,13 @@ import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tuples.generated.Tuple5;
 import org.web3j.tx.gas.DefaultGasProvider;
+import org.web3j.utils.Convert;
 
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -38,6 +48,8 @@ import butterknife.ButterKnife;
 public class CreateFragment extends Fragment {
     private final String TAG = CreateFragment.class.getSimpleName();
 
+    private NavController mNavController;
+
     @BindView(R.id.amount_text_field)
     TextInputLayout amountTextInput;
     @BindView(R.id.borrower_text_field)
@@ -46,12 +58,16 @@ public class CreateFragment extends Fragment {
     TextInputLayout descriptionTextInput;
     @BindView(R.id.create_debt_btn)
     Button createBtn;
+    @BindView(R.id.progress_bar)
+    ProgressBar progressBar;
 
 
     private final String PRIVATE_KEY = "3f30d2588cad03f8557c936db0e3af06afab6557a8af27f34a0c5f0993be09e3";
     private DebtFactory mDebtFactory;
     private Credentials credentials = Credentials.create(PRIVATE_KEY);
     private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
+
+    private DebtPOJO newDebt;
 
     public CreateFragment() {
         // Required empty public constructor
@@ -95,20 +111,56 @@ public class CreateFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        Deploy deploy = new Deploy();
+        mNavController = Navigation.findNavController(view);
 
         createBtn.setOnClickListener(v -> {
-            int amount = Integer.parseInt(amountTextInput.getEditText().getText().toString());
-            String borrowerAddress = borrowerTextInput.getEditText().getText().toString();
-            String description = descriptionTextInput.getEditText().getText().toString();
+            progressBar.setVisibility(View.VISIBLE);
 
-            try {
-                CompletableFuture<TransactionReceipt> call = mDebtFactory.createDebt(BigInteger.valueOf(amount), borrowerAddress, description).sendAsync();
-                TransactionReceipt receipt = call.get();
-                Log.i(TAG, "onViewCreated: " + receipt.getTransactionHash() + "\n" + receipt.getBlockNumber());
-            }catch (Exception e){
-                Log.e(TAG, "onViewCreated: ", e);
-            }
+            newDebt = new DebtPOJO();
+
+            assert amountTextInput.getEditText() != null;
+            int amount = Integer.parseInt(amountTextInput.getEditText().getText().toString());
+            newDebt.setAmount(amount);
+
+            assert borrowerTextInput.getEditText() != null;
+            String borrowerAddress = borrowerTextInput.getEditText().getText().toString();
+            newDebt.setBorrower(borrowerAddress);
+
+            assert descriptionTextInput.getEditText() != null;
+            String description = descriptionTextInput.getEditText().getText().toString();
+            newDebt.setDescription(description);
+            CompletableFuture<TransactionReceipt> call = mDebtFactory.createDebt(BigInteger.valueOf(amount), borrowerAddress, description).sendAsync();
+            updateUI(call);
         });
+    }
+
+    private void updateUI(CompletableFuture<TransactionReceipt> completableFuture){
+        new Thread(() -> {
+            try {
+                TransactionReceipt receipt = completableFuture.get();
+                Log.i(TAG, "updateUI: " + receipt.getFrom() + "\n" + receipt.getTransactionHash());
+                newDebt.setLender(receipt.getFrom());
+//                double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
+                Bundle debtBundle = new Bundle();
+                debtBundle.putString("lender", newDebt.getLender());
+                debtBundle.putString("borrower", newDebt.getBorrower());
+                debtBundle.putString("description", newDebt.getDescription());
+                debtBundle.putDouble("amount", newDebt.getAmount());
+                debtBundle.putBoolean("status", newDebt.isSettled());
+                if (receipt.isStatusOK()) {
+                    assert getActivity() != null;
+                    getActivity().runOnUiThread(() -> {
+                        progressBar.setVisibility(View.GONE);
+                        // TODO: 3/26/2020 add a snackbar showing that the transaction succeeded. (Take user to newly created contract so no needed)
+                        // TODO: 3/26/2020 send user to details page after finishing its implementation. (DONE)
+                        mNavController.popBackStack();
+                        mNavController.navigate(R.id.details_dest, debtBundle);
+//                        mNavController.popBackStack(R.id.home_dest, false);
+                    });
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }).start();
     }
 }
