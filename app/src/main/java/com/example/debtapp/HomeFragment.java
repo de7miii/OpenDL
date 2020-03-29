@@ -29,11 +29,15 @@ import com.example.debtapp.ViewModels.SignupViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Wallet;
+import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.Ethereum;
+import org.web3j.protocol.core.methods.response.EthAccounts;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
 
@@ -70,9 +74,12 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     private List<DebtPOJO> mDebts;
 
     private final String PRIVATE_KEY = "3f30d2588cad03f8557c936db0e3af06afab6557a8af27f34a0c5f0993be09e3";
+    private final String MNEMONIC = "duck style party style shaft chapter develop catch elbow upgrade city width";
     private DebtFactory mDebtFactory;
-    private Credentials credentials = Credentials.create(PRIVATE_KEY);
+    private Credentials mCredentials = null;
+//    private Credentials credentials = Credentials.create(PRIVATE_KEY);
     private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
+    private String userMnemonic = null;
 
 
     public HomeFragment() {
@@ -84,6 +91,14 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         super.onCreate(savedInstanceState);
         mLoginViewModel = new ViewModelProvider(requireActivity()).get(LoginViewModel.class);
         mSignupViewModel = new ViewModelProvider(requireActivity()).get(SignupViewModel.class);
+
+        Log.i(TAG, "onCreate: Credentials using mnemonic: " + mCredentials.getAddress());
+
+        assert getArguments() != null;
+        userMnemonic = getArguments().getString("mnemonic");
+
+        assert userMnemonic != null;
+        mCredentials = WalletUtils.loadBip39Credentials(null, userMnemonic);
 
         mAdapter = new HomeAdapter(getContext(), this);
         mDebts = new ArrayList<>();
@@ -116,13 +131,13 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                         Log.i(TAG, "onActivityCreated: deployed debts = "  + debts.size());
                         for (int i = 0; i < debts.size(); i++) {
                             String debtAddress = (String) debts.get(i);
-                            Debt debt = Debt.load(debtAddress, web3j, credentials, new DefaultGasProvider());
+                            Debt debt = Debt.load(debtAddress, web3j, mCredentials, new DefaultGasProvider());
                             String lender = "", borrower = "", description = "";
                             BigInteger amount = BigInteger.ZERO;
                             Boolean status = false;
                             try {
                                 Tuple5 debtDetails = debt.getDetails().sendAsync().get();
-                                lender = (String) debtDetails.component1();
+                                 lender = (String) debtDetails.component1();
                                  borrower = (String) debtDetails.component2();
                                  amount = (BigInteger) debtDetails.component3();
                                  description = (String) debtDetails.component4();
@@ -132,7 +147,9 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                             }
 
                             double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
-                            mDebts.add(new DebtPOJO(lender, borrower, description, amountInEther, status));
+                            DebtPOJO tempDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
+                            tempDebt.setAddress(debtAddress);
+                            mDebts.add(tempDebt);
                         }
                         if (!mDebts.isEmpty()){
                             mAdapter.updateDebtsList(mDebts);
@@ -198,13 +215,13 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
             try {
                 if (SaveSharedPreference.getDeployedContractAddress(getContext()).equals("null")) {
                     Log.i(TAG, "saved contract address: " + SaveSharedPreference.getDeployedContractAddress(getContext()));
-                    CompletableFuture<DebtFactory> factoryCompletableFuture = DebtFactory.deploy(web3j, credentials, new DefaultGasProvider()).sendAsync();
+                    CompletableFuture<DebtFactory> factoryCompletableFuture = DebtFactory.deploy(web3j, mCredentials, new DefaultGasProvider()).sendAsync();
                     updateUI(factoryCompletableFuture);
                     Log.i(TAG, "deployed contract address: " + mDebtFactory.getContractAddress());
                 } else {
                     Log.i(TAG, "saved contract address: " + SaveSharedPreference.getDeployedContractAddress(getContext()));
                     mDebtFactory = DebtFactory.load(SaveSharedPreference.getDeployedContractAddress(getContext())
-                            , web3j, credentials, new DefaultGasProvider());
+                            , web3j, mCredentials, new DefaultGasProvider());
                     mAdapter.notifyDataSetChanged();
                 }
             } catch (Exception e) {
@@ -223,6 +240,7 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         debtBundle.putString("lender", currentDebt.getLender());
         debtBundle.putString("description", currentDebt.getDescription());
         debtBundle.putBoolean("status", currentDebt.isSettled());
+        debtBundle.putString("address", currentDebt.getAddress());
         mNavController.navigate(R.id.details_dest, debtBundle);
     }
 

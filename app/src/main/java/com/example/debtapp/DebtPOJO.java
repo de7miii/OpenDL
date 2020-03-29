@@ -6,6 +6,7 @@ public class DebtPOJO {
     private String mDescription;
     private double mAmount;
     private boolean mStatus;
+    private String mAddress;
 
     public DebtPOJO() {
     }
@@ -56,5 +57,13 @@ public class DebtPOJO {
 
     public void setStatus(boolean status) {
         mStatus = status;
+    }
+
+    public String getAddress() {
+        return mAddress;
+    }
+
+    public void setAddress(String address) {
+        mAddress = address;
     }
 }

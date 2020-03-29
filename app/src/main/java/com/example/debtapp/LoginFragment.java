@@ -47,9 +47,13 @@ public class LoginFragment extends Fragment {
     @BindView(R.id.username_text_input)
     TextInputLayout usernameInput;
 
+    @BindView(R.id.mnemonic_text_input)
+    TextInputLayout mnemonicInput;
+
 
     private String username;
     private String password;
+    private String mnemonic;
 
 
     public LoginFragment() {
@@ -75,7 +79,12 @@ public class LoginFragment extends Fragment {
         signupButton.setOnClickListener(Navigation.createNavigateOnClickListener(R.id.action_logintosignup));
 
         loginButton.setOnClickListener(v -> {
+            assert usernameInput.getEditText() != null;
+            assert passwordInput.getEditText() != null;
+            assert mnemonicInput.getEditText() != null;
+
             username = usernameInput.getEditText().getText().toString();
+            mnemonic = mnemonicInput.getEditText().getText().toString();
             password = passwordInput.getEditText().getText().toString();
             if (username.isEmpty()) {
                 usernameInput.setError("Username can't be empty");
@@ -96,7 +105,9 @@ public class LoginFragment extends Fragment {
         loginViewModel.authenticateState.observe(getViewLifecycleOwner(), authenticationState -> {
             switch (authenticationState) {
                 case AUTHENTICATED:
-                    mNavController.navigate(R.id.action_logintohome);
+                    Bundle bundle = new Bundle();
+                    bundle.putString("mnemonic", mnemonic);
+                    mNavController.navigate(R.id.action_logintohome, bundle);
                     break;
                 case INVALID_AUTHENTICATION:
                     Toast.makeText(getContext(), "Wrong Username/Password", Toast.LENGTH_SHORT).show();

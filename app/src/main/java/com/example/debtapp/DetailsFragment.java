@@ -13,6 +13,21 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.example.debtapp.Contracts.Debt;
+import com.example.debtapp.Contracts.DebtFactory;
+
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.Wallet;
+import org.web3j.crypto.WalletFile;
+import org.web3j.crypto.WalletUtils;
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.methods.response.EthAccounts;
+import org.web3j.protocol.http.HttpService;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
@@ -35,8 +50,8 @@ public class DetailsFragment extends Fragment {
     TextView statusTextView;
 
     private DebtPOJO mDebt;
-
-    // TODO: 3/26/2020 Design the details page (DONE)
+    private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
+    private List<String> accountsList = new ArrayList<>();
 
     // TODO: 3/27/2020 implement the settling logic + add button to the layout
     // TODO: 3/27/2020 add a QRCode with the contract address
@@ -61,6 +76,21 @@ public class DetailsFragment extends Fragment {
         Log.i(TAG, "onActivityCreated: Borrower " + getArguments().getString("borrower") + "\n");
         Log.i(TAG, "onActivityCreated: Description " + getArguments().getString("description"));
         Log.i(TAG, "onActivityCreated: Status " + getArguments().getBoolean("status"));
+        Log.i(TAG, "onActivityCreated: address " + getArguments().getString("address"));
+
+
+        CompletableFuture<EthAccounts> accounts = web3j.ethAccounts().sendAsync();
+        new Thread(() -> {
+            EthAccounts ethAccounts = null;
+            try {
+                ethAccounts = accounts.get();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            assert ethAccounts != null;
+            accountsList.addAll(ethAccounts.getAccounts());
+            Log.i(TAG, "onCreate: from another thread: " + ethAccounts.getAccounts().get(0) + "\n" + ethAccounts.getAccounts().get(1));
+        }).start();
     }
 
     @Override
