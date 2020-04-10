@@ -92,8 +92,6 @@ public class DetailsFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        mPrivateKey = "0x9daf1e64c19a8fbe82d637922e4cc072e9d247715a73455c196af41cf93177e6";
-
         if (getArguments() != null){
             if (getArguments().containsKey("priKey")) {
                 mPrivateKey = getArguments().getString("priKey");
