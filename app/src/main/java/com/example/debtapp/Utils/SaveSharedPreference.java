@@ -9,6 +9,7 @@ public class SaveSharedPreference {
     private static final String DEPLOYED_CONTRACT_ADDRESS = "deployed_contract_address";
     private static final String LOGIN_STATUS = "login_status";
     private static final String USERNAME = "username";
+    private static final String PRIVATE_KEY = "private_key";
 
     static SharedPreferences getSharedPreference(Context context){
         return PreferenceManager.getDefaultSharedPreferences(context);
@@ -47,6 +48,22 @@ public class SaveSharedPreference {
     public static void removeUsername(Context context){
         SharedPreferences.Editor editor = getSharedPreference(context).edit();
         editor.remove(USERNAME);
+        editor.apply();
+    }
+
+    public static void setPrivateKey(Context context, String privateKey){
+        SharedPreferences.Editor editor = getSharedPreference(context).edit();
+        editor.putString(PRIVATE_KEY, privateKey);
+        editor.apply();
+    }
+
+    public static String getPrivateKey(Context context){
+        return getSharedPreference(context).getString(PRIVATE_KEY, "null");
+    }
+
+    public static void removePrivateKey(Context context){
+        SharedPreferences.Editor editor = getSharedPreference(context).edit();
+        editor.remove(PRIVATE_KEY);
         editor.apply();
     }
 }

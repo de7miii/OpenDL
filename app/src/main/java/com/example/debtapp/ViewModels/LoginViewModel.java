@@ -28,6 +28,7 @@ public class LoginViewModel extends AndroidViewModel {
         }
     }
 
+    // TODO: 4/8/2020 implement a cloud database to store login credentials
     private boolean passwordIsValidForUsername(String username, String password){
         return true;
     }
@@ -40,6 +41,7 @@ public class LoginViewModel extends AndroidViewModel {
         if (SaveSharedPreference.isLoggedIn(context)){
             SaveSharedPreference.setLoginStatus(context, false);
             SaveSharedPreference.removeUsername(context);
+            SaveSharedPreference.removePrivateKey(context);
             authenticateState.setValue(AuthenticationState.UNAUTHENTICATED);
             return true;
         }else{

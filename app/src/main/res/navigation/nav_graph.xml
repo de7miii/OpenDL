@@ -56,6 +56,14 @@
     </navigation>
 
     <action
+        android:id="@+id/action_hometologin"
+        app:destination="@id/login_navigation" />
+
+    <action
         android:id="@+id/action_logintohome"
         app:destination="@id/home_dest" />
+    <fragment
+        android:id="@+id/settingFragment"
+        android:name="com.example.debtapp.SettingFragment"
+        android:label="SettingFragment" />
 </navigation>
