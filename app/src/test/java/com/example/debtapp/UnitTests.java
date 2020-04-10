@@ -7,22 +7,13 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import org.web3j.crypto.ContractUtils;
-import org.web3j.crypto.Credentials;
-import org.web3j.crypto.Wallet;
-import org.web3j.crypto.WalletFile;
 import org.web3j.crypto.WalletUtils;
-import org.web3j.ens.Contracts;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.EthAccounts;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tuples.generated.Tuple5;
 import org.web3j.tx.ClientTransactionManager;
-import org.web3j.tx.Contract;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
@@ -30,20 +21,17 @@ import org.web3j.utils.Convert;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 
 /**
- * Example local unit test, which will execute on the development machine (host).
- *
- * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
+ * local unit test, which will execute on the development machine (host).
  */
-public class ExampleUnitTest {
+public class UnitTests {
 
-    Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
-    List<String> mAccounts = new ArrayList<>();
+    private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
+    private List<String> mAccounts = new ArrayList<>();
 
-    public ExampleUnitTest() {
+    public UnitTests() {
         try{
             EthAccounts accounts = web3j.ethAccounts().send();
             mAccounts = accounts.getAccounts();
@@ -85,7 +73,7 @@ public class ExampleUnitTest {
     }
 
     @Test
-    public void createDebt_test(){
+    public void endToEnd_test(){
         TransactionManager manager = new ClientTransactionManager(web3j, mAccounts.get(0));
         try{
             DebtFactory factory = DebtFactory.deploy(web3j, manager, new DefaultGasProvider()).send();
@@ -98,7 +86,31 @@ public class ExampleUnitTest {
             String deployedDebtFromEventsLog = events.get(0).newAddress;
             String deployedDebtFromFactory = (String) factory.getDeployedDebts().send().get(0);
 
-            assertSame("Deployed Debt address is invalid", deployedDebtFromFactory, deployedDebtFromEventsLog);
+            assertEquals("Deployed Debt address is invalid", deployedDebtFromFactory, deployedDebtFromEventsLog);
+
+            Debt debt = Debt.load(deployedDebtFromFactory, web3j, manager, new DefaultGasProvider());
+            Tuple5 debtInfo = debt.getDetails().send();
+
+            assertNotNull("Failed to get debt contract info", debtInfo);
+            assertNotNull("Failed to get lender address", debtInfo.component1());
+            assertNotNull("Failed to get borrower address", debtInfo.component2());
+            assertNotNull("Failed to get debt amount", debtInfo.component3());
+            assertNotNull("Failed to get debt description", debtInfo.component4());
+            assertNotNull("Failed to get debt status", debtInfo.component5());
+
+            assertEquals("Expected Lender Address is Wrong", mAccounts.get(0), debtInfo.component1());
+            assertEquals("Expected Borrower Address is Wrong", mAccounts.get(1), debtInfo.component2());
+            assertEquals("Expected Amount is Wrong", Convert.toWei("2", Convert.Unit.ETHER).toBigInteger(), debtInfo.component3());
+            assertEquals("Expected Description is Wrong", "testing", debtInfo.component4());
+            assertEquals("Expected Debt Status is Wrong", false, debtInfo.component5());
+
+            TransactionManager borrowerManager = new ClientTransactionManager(web3j, mAccounts.get(1));
+
+            debt = Debt.load(deployedDebtFromFactory, web3j, borrowerManager, new DefaultGasProvider());
+            debt.settleDebt().send();
+            debtInfo = debt.getDetails().send();
+            assertEquals("Expected Debt Status After Settling is Wrong", true, debtInfo.component5());
+
         }catch (Exception e){
             e.printStackTrace();
         }
