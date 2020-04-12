@@ -11,6 +11,8 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,7 +21,11 @@ import android.widget.Toast;
 import com.example.debtapp.Utils.SaveSharedPreference;
 import com.example.debtapp.ViewModels.LoginViewModel;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputLayout;
+
+import org.web3j.crypto.WalletUtils;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -48,12 +54,12 @@ public class LoginFragment extends Fragment {
     TextInputLayout usernameInput;
 
     @BindView(R.id.mnemonic_text_input)
-    TextInputLayout mnemonicInput;
+    TextInputLayout privateKeyInput;
 
 
-    private String username;
-    private String password;
-    private String mnemonic;
+    private String mUsername;
+    private String mPassword;
+    private String mPrivateKey;
 
 
     public LoginFragment() {
@@ -76,24 +82,91 @@ public class LoginFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         mNavController = Navigation.findNavController(view);
 
-        signupButton.setOnClickListener(Navigation.createNavigateOnClickListener(R.id.action_logintosignup));
+//        signupButton.setOnClickListener(Navigation.createNavigateOnClickListener(R.id.action_logintosignup));
+
+        assert usernameInput.getEditText() != null;
+        assert passwordInput.getEditText() != null;
+        assert privateKeyInput.getEditText() != null;
+
+        usernameInput.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String newText = s.toString();
+                if (newText.isEmpty()){
+                    usernameInput.setError("Username can't be empty");
+                }else{
+                    mUsername = newText;
+                }
+            }
+        });
+
+        passwordInput.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String newText = s.toString();
+                if (newText.isEmpty()) {
+                    passwordInput.setError("Password can't be empty");
+                }else if ( newText.length() + 1 < 8){
+                    passwordInput.setError("Password must be at least 8 characters long");
+                }else {
+                    mPassword = newText;
+                }
+            }
+        });
+
+        privateKeyInput.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String newText = s.toString();
+                if (WalletUtils.isValidPrivateKey(newText)){
+                    mPrivateKey = newText;
+                }else{
+                    privateKeyInput.setError("Invalid Private Key");
+                }
+            }
+        });
 
         loginButton.setOnClickListener(v -> {
-            assert usernameInput.getEditText() != null;
-            assert passwordInput.getEditText() != null;
-            assert mnemonicInput.getEditText() != null;
 
-            username = usernameInput.getEditText().getText().toString();
-            mnemonic = mnemonicInput.getEditText().getText().toString();
-            password = passwordInput.getEditText().getText().toString();
-            if (username.isEmpty()) {
-                usernameInput.setError("Username can't be empty");
+            assert !mUsername.isEmpty();
+            assert !mPassword.isEmpty();
+            assert !mPrivateKey.isEmpty();
+            if (privateKeyInput.getEditText().getText().toString().isEmpty()){
+                Snackbar.make(view, "Private Key Can't Be Empty", BaseTransientBottomBar.LENGTH_SHORT).show();
             }
-            if (password.isEmpty() || password.length() + 1 < 8) {
-                passwordInput.setError("Password must be at least 8 characters");
-            }
-            loginViewModel.authenticate(username, password);
-            SaveSharedPreference.setUsername(getContext(), username);
+            loginViewModel.authenticate(mUsername, mPassword);
+            SaveSharedPreference.setPrivateKey(getContext(), mPrivateKey);
+            SaveSharedPreference.setUsername(getContext(), mUsername);
         });
 
     }
@@ -105,9 +178,9 @@ public class LoginFragment extends Fragment {
         loginViewModel.authenticateState.observe(getViewLifecycleOwner(), authenticationState -> {
             switch (authenticationState) {
                 case AUTHENTICATED:
-                    Bundle bundle = new Bundle();
-                    bundle.putString("mnemonic", mnemonic);
-                    mNavController.navigate(R.id.action_logintohome, bundle);
+                    if (!SaveSharedPreference.getPrivateKey(getContext()).isEmpty()) {
+                        mNavController.navigate(R.id.action_logintohome);
+                    }
                     break;
                 case INVALID_AUTHENTICATION:
                     Toast.makeText(getContext(), "Wrong Username/Password", Toast.LENGTH_SHORT).show();

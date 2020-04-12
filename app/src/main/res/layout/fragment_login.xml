@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:context=".LoginFragment"
-        android:background="@color/colorPrimary">
+        android:background="@color/primaryColor">
 
 <!--        <ImageView-->
 <!--            android:id="@+id/logo_image_view"-->
@@ -55,7 +55,7 @@
             android:layout_marginTop="24dp"
             android:layout_marginLeft="16dp"
             android:layout_marginRight="16dp"
-            android:hint="@string/mnemonic_hint_text"
+            android:hint="@string/private_key_hint_text"
             app:hintEnabled="true"
             app:hintAnimationEnabled="true"
             app:hintTextAppearance="@style/hint_style"

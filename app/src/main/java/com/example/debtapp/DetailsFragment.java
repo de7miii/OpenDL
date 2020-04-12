@@ -3,28 +3,54 @@ package com.example.debtapp;
 
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.example.debtapp.Contracts.Debt;
-import com.example.debtapp.Contracts.DebtFactory;
+import com.example.debtapp.Utils.SaveSharedPreference;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
 
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.Wallet;
-import org.web3j.crypto.WalletFile;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Keys;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.EthAccounts;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tx.ClientTransactionManager;
+import org.web3j.tx.TransactionManager;
+import org.web3j.tx.Transfer;
+import org.web3j.tx.gas.DefaultGasProvider;
+import org.web3j.utils.Convert;
+import org.web3j.utils.Numeric;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.security.Key;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -48,12 +74,18 @@ public class DetailsFragment extends Fragment {
     TextView amountTextView;
     @BindView(R.id.status_text)
     TextView statusTextView;
+    @BindView(R.id.settle_btn)
+    Button settleBtn;
+    @BindView(R.id.progress_circular)
+    ProgressBar progressBar;
 
     private DebtPOJO mDebt;
-    private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
-    private List<String> accountsList = new ArrayList<>();
+    private Web3j web3j = Web3j.build(new HttpService("https://rinkeby.infura.io/v3/257f79e9b33946abb69bd1adb3e108e4"));
+    private Debt mDebtContract = null;
+    private  String mPrivateKey;
+    private Credentials mCredentials;
 
-    // TODO: 3/27/2020 implement the settling logic + add button to the layout
+    private NavController mNavController;
     // TODO: 3/27/2020 add a QRCode with the contract address
     // TODO: 3/27/2020 add etherscan support and show the contract on etherscan.
 
@@ -64,32 +96,60 @@ public class DetailsFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (getArguments() != null){
+            if (getArguments().containsKey("priKey")) {
+                mPrivateKey = getArguments().getString("priKey");
+                Log.i(TAG, "onCreate: new private key: " + mPrivateKey);
+            }
+        }
+
+        if (mPrivateKey == null){
+            mPrivateKey = SaveSharedPreference.getPrivateKey(getContext());
+            Log.i(TAG, "onCreate: Private Key" + mPrivateKey);
+        }
+
+        if (mPrivateKey != null && !mPrivateKey.isEmpty() && !mPrivateKey.equals("null")) {
+            mCredentials = Credentials.create(mPrivateKey);
+        }
+
         assert getArguments() != null;
-        mDebt = new DebtPOJO(getArguments().getString("lender"),
-                getArguments().getString("borrower"),
-                getArguments().getString("description"),
-                getArguments().getDouble("amount"),
-                getArguments().getBoolean("status"));
-
-        Log.i(TAG, "onActivityCreated: Amount " + getArguments().getDouble("amount") + "\n");
-        Log.i(TAG, "onActivityCreated: Lender " + getArguments().getString("lender") + "\n");
-        Log.i(TAG, "onActivityCreated: Borrower " + getArguments().getString("borrower") + "\n");
-        Log.i(TAG, "onActivityCreated: Description " + getArguments().getString("description"));
-        Log.i(TAG, "onActivityCreated: Status " + getArguments().getBoolean("status"));
-        Log.i(TAG, "onActivityCreated: address " + getArguments().getString("address"));
-
-
-        CompletableFuture<EthAccounts> accounts = web3j.ethAccounts().sendAsync();
+        mDebtContract = Debt.load(getArguments().getString("address"), web3j, mCredentials, new DefaultGasProvider());
         new Thread(() -> {
-            EthAccounts ethAccounts = null;
+            String lender = "", borrower = "", description = "";
+            BigInteger amount = BigInteger.ZERO;
+            Boolean status = false;
             try {
-                ethAccounts = accounts.get();
+                Tuple5 debtDetails = mDebtContract.getDetails().sendAsync().get();
+                lender = (String) debtDetails.component1();
+                borrower = (String) debtDetails.component2();
+                amount = (BigInteger) debtDetails.component3();
+                description = (String) debtDetails.component4();
+                status = (Boolean) debtDetails.component5();
             }catch (Exception e){
                 e.printStackTrace();
             }
-            assert ethAccounts != null;
-            accountsList.addAll(ethAccounts.getAccounts());
-            Log.i(TAG, "onCreate: from another thread: " + ethAccounts.getAccounts().get(0) + "\n" + ethAccounts.getAccounts().get(1));
+            Log.i(TAG, "onCreate: " + description + " " + status);
+            double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
+            mDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
+            mDebt.setAddress(getArguments().getString("address"));
+            assert getActivity() != null;
+            getActivity().runOnUiThread(() -> {
+                if (mDebt != null){
+                    lenderTextView.setText(mDebt.getLender());
+                    borrowerTextView.setText(mDebt.getBorrower());
+                    descriptionTextView.setText(mDebt.getDescription());
+                    StringBuilder amountString = new StringBuilder();
+                    amountString.append(mDebt.getAmount()).append(" WEI");
+                    amountTextView.setText(amountString.toString());
+                    statusTextView.setText(String.valueOf(mDebt.isSettled()));
+                    if (mDebt.isSettled()){
+                        settleBtn.setEnabled(false);
+                    }else{
+                        settleBtn.setEnabled(true);
+                    }
+                }
+            });
         }).start();
     }
 
@@ -105,19 +165,77 @@ public class DetailsFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        if (mDebt != null){
-            lenderTextView.setText(mDebt.getLender());
-            borrowerTextView.setText(mDebt.getBorrower());
-            descriptionTextView.setText(mDebt.getDescription());
-            StringBuilder amount = new StringBuilder();
-            amount.append(mDebt.getAmount()).append(" WEI");
-            amountTextView.setText(amount.toString());
-            statusTextView.setText(String.valueOf(mDebt.isSettled()));
-        }
+
+        mNavController = Navigation.findNavController(view);
+
+        settleBtn.setOnClickListener((v) ->{
+            if (mDebtContract != null){
+                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                builder.setTitle("Private Key");
+
+                final EditText input = new EditText(getContext());
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                input.setText(mPrivateKey);
+                builder.setView(input);
+
+                builder.setPositiveButton("OK", (dialog, which) -> {
+                    progressBar.setVisibility(View.VISIBLE);
+                    if (input.getText().toString().startsWith("0x")){
+                        mPrivateKey = input.getText().toString();
+                        mCredentials = Credentials.create(mPrivateKey);
+                    }else{
+                        mPrivateKey = "0x" + input.getText().toString();
+                        mCredentials = Credentials.create(mPrivateKey);
+                    }
+                    if (mCredentials.getAddress().equals(mDebt.getBorrower())){
+                        Log.i(TAG, "onViewCreated: Settle Button: " + mCredentials.getAddress());
+                        mDebtContract = Debt.load(mDebt.getAddress(), web3j, mCredentials, new DefaultGasProvider());
+                        int debtAmount = (int) mDebt.getAmount();
+                        CompletableFuture<TransactionReceipt> call = mDebtContract.settleDebt().sendAsync();
+                        new Thread(() ->{
+                            try {
+                                TransactionReceipt receipt = call.get();
+                                if (receipt.isStatusOK()){
+                                    TransactionReceipt etherReceipt = Transfer.sendFunds(web3j,
+                                            mCredentials,
+                                            mDebt.getLender(),
+                                            BigDecimal.valueOf(mDebt.getAmount()),
+                                            Convert.Unit.WEI).send();
+                                    assert etherReceipt.isStatusOK();
+                                }
+                                Log.i(TAG, "onViewCreated: transaction status: " + receipt.isStatusOK());
+                                assert getActivity() != null;
+                                getActivity().runOnUiThread(() -> {
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                    mNavController.popBackStack();
+                                    mNavController.navigate(R.id.home_dest);
+                                });
+                            }catch (Exception e){
+                                Log.e(TAG, "onViewCreated: Settle Button: ", e);
+                            }
+                        }).start();
+                    }else{
+                        Snackbar.make(view, "Only Borrower Allowed to Settle His Debt", BaseTransientBottomBar.LENGTH_LONG).show();
+                        Log.i(TAG, "onViewCreated: Only Borrower Allowed to settle his debt");
+                    }
+                });
+                builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+
+                builder.show();
+            }
+        });
     }
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+
+        requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                mNavController.popBackStack();
+                mNavController.navigate(R.id.home_dest);
+            }
+        });
     }
 }

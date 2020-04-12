@@ -1,22 +1,31 @@
 package com.example.debtapp;
 
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ProgressBar;
 
 import com.example.debtapp.Adapters.HomeAdapter;
@@ -27,17 +36,13 @@ import com.example.debtapp.Utils.SaveSharedPreference;
 import com.example.debtapp.ViewModels.LoginViewModel;
 import com.example.debtapp.ViewModels.SignupViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
 
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.Wallet;
-import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.core.Ethereum;
-import org.web3j.protocol.core.methods.response.EthAccounts;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
-import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
 
@@ -48,7 +53,6 @@ import java.util.concurrent.CompletableFuture;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import jnr.a64asm.EXTEND_ENUM;
 
 
 /**
@@ -73,14 +77,12 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     private HomeAdapter mAdapter;
     private List<DebtPOJO> mDebts;
 
-    private final String PRIVATE_KEY = "3f30d2588cad03f8557c936db0e3af06afab6557a8af27f34a0c5f0993be09e3";
-    private final String MNEMONIC = "duck style party style shaft chapter develop catch elbow upgrade city width";
+    private String mPrivateKey = null;
     private DebtFactory mDebtFactory;
-    private Credentials mCredentials = null;
-//    private Credentials credentials = Credentials.create(PRIVATE_KEY);
-    private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
-    private String userMnemonic = null;
+    private Credentials mCredentials;
+    private Web3j web3j = Web3j.build(new HttpService("https://rinkeby.infura.io/v3/257f79e9b33946abb69bd1adb3e108e4"));
 
+    private MutableLiveData<Boolean> logingStatus = new MutableLiveData<>();
 
     public HomeFragment() {
         // Required empty public constructor
@@ -91,18 +93,31 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         super.onCreate(savedInstanceState);
         mLoginViewModel = new ViewModelProvider(requireActivity()).get(LoginViewModel.class);
         mSignupViewModel = new ViewModelProvider(requireActivity()).get(SignupViewModel.class);
+        setHasOptionsMenu(true);
 
-        Log.i(TAG, "onCreate: Credentials using mnemonic: " + mCredentials.getAddress());
-
-        assert getArguments() != null;
-        userMnemonic = getArguments().getString("mnemonic");
-
-        assert userMnemonic != null;
-        mCredentials = WalletUtils.loadBip39Credentials(null, userMnemonic);
+        Log.i(TAG, "onCreate: Saved Address" + SaveSharedPreference.getDeployedContractAddress(getContext()));
 
         mAdapter = new HomeAdapter(getContext(), this);
         mDebts = new ArrayList<>();
 
+    }
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.main_menu, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.menu_settings){
+            Bundle bundle = new Bundle();
+            assert mPrivateKey != null;
+            bundle.putString("priKey", mPrivateKey);
+            assert mCredentials != null;
+            bundle.putString("pubKey", mCredentials.getAddress());
+            mNavController.navigate(R.id.settingFragment, bundle);
+        }
+        return true;
     }
 
     @Override
@@ -111,6 +126,8 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         ButterKnife.bind(this, view);
+        createFap.setVisibility(View.INVISIBLE);
+
         return view;
     }
 
@@ -119,63 +136,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-
-
-        if (mDebtFactory != null && mDebts.isEmpty()){
-                CompletableFuture<List> deplyedDebts = mDebtFactory.getDeployedDebts().sendAsync();
-                new Thread(() -> {
-                    try {
-                    List debts = deplyedDebts.get();
-                    assert getActivity() != null;
-                    getActivity().runOnUiThread(() -> {
-                        Log.i(TAG, "onActivityCreated: deployed debts = "  + debts.size());
-                        for (int i = 0; i < debts.size(); i++) {
-                            String debtAddress = (String) debts.get(i);
-                            Debt debt = Debt.load(debtAddress, web3j, mCredentials, new DefaultGasProvider());
-                            String lender = "", borrower = "", description = "";
-                            BigInteger amount = BigInteger.ZERO;
-                            Boolean status = false;
-                            try {
-                                Tuple5 debtDetails = debt.getDetails().sendAsync().get();
-                                 lender = (String) debtDetails.component1();
-                                 borrower = (String) debtDetails.component2();
-                                 amount = (BigInteger) debtDetails.component3();
-                                 description = (String) debtDetails.component4();
-                                 status = (Boolean) debtDetails.component5();
-                            }catch (Exception e){
-                                e.printStackTrace();
-                            }
-
-                            double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
-                            DebtPOJO tempDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
-                            tempDebt.setAddress(debtAddress);
-                            mDebts.add(tempDebt);
-                        }
-                        if (!mDebts.isEmpty()){
-                            mAdapter.updateDebtsList(mDebts);
-                            mAdapter.notifyDataSetChanged();
-                            progressBar.setVisibility(View.GONE);
-                        }
-                    });
-                    }catch (Exception e){
-                        Log.e(TAG, "onActivityCreated: fetching debts", e);
-                    }
-                }).start();
-        }
-
-        recyclerView.setAdapter(mAdapter);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
-        recyclerView.setLayoutManager(layoutManager);
-
-
-        createFap.setOnClickListener(v -> {
-            mDebts.clear();
-            mNavController.navigate(R.id.create_dest);
-        });
-
-        if (!mDebts.isEmpty()){
-            progressBar.setVisibility(View.GONE);
-        }
 
 //
 //        logoutBtn.setOnClickListener(v -> {
@@ -195,8 +155,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         super.onViewCreated(view, savedInstanceState);
         mNavController = Navigation.findNavController(view);
 
-        progressBar.setVisibility(View.VISIBLE);
-
         if (!SaveSharedPreference.isLoggedIn(getContext())){
             mLoginViewModel.authenticateState.observe(getViewLifecycleOwner(), authenticationState -> {
                 switch (authenticationState){
@@ -211,15 +169,63 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                 }
             });
         }
+
+        if (mPrivateKey == null){
+            mPrivateKey = SaveSharedPreference.getPrivateKey(getContext());
+            Log.i(TAG, "onCreate: Private Key" + mPrivateKey);
+            if (mPrivateKey.equals("null")){
+                mLoginViewModel.logOut(getContext());
+                mNavController.popBackStack();
+                mNavController.navigate(R.id.action_hometologin);
+            }
+        }
+
+        if (getArguments() != null){
+            if (getArguments().containsKey("priKey")) {
+                mPrivateKey = getArguments().getString("priKey");
+                Log.i(TAG, "onCreate: new private key: " + mPrivateKey);
+            }
+        }
+        if (mPrivateKey != null && !mPrivateKey.isEmpty() && !mPrivateKey.equals("null")){
+            mCredentials = Credentials.create(mPrivateKey);
+        }else{
+            mLoginViewModel.logOut(getContext());
+            mNavController.popBackStack();
+            mNavController.navigate(R.id.action_hometologin);
+        }
+
+        progressBar.setVisibility(View.VISIBLE);
+
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
         if (mDebts.isEmpty() && mDebtFactory == null) {
             try {
                 if (SaveSharedPreference.getDeployedContractAddress(getContext()).equals("null")) {
                     Log.i(TAG, "saved contract address: " + SaveSharedPreference.getDeployedContractAddress(getContext()));
+                    assert mCredentials != null;
                     CompletableFuture<DebtFactory> factoryCompletableFuture = DebtFactory.deploy(web3j, mCredentials, new DefaultGasProvider()).sendAsync();
-                    updateUI(factoryCompletableFuture);
-                    Log.i(TAG, "deployed contract address: " + mDebtFactory.getContractAddress());
+                    new Thread(() -> {
+                        try {
+                            mDebtFactory = factoryCompletableFuture.get();
+                            assert getActivity() != null;
+                            getActivity().runOnUiThread(() -> {
+                                assert mDebtFactory != null;
+                                SaveSharedPreference.setDeployedContractAddress(getContext(), mDebtFactory.getContractAddress());
+                                mAdapter.notifyDataSetChanged();
+                                assert getView() != null;
+                                Snackbar.make(getView().getRootView(), "Contract Deplyed at: " + mDebtFactory.getContractAddress(), BaseTransientBottomBar.LENGTH_LONG).show();
+                            });
+                        }catch (Exception e){
+                            Log.e(TAG, "onCreateView: ", e);
+                        }
+                    }).start();
                 } else {
                     Log.i(TAG, "saved contract address: " + SaveSharedPreference.getDeployedContractAddress(getContext()));
+                    assert mCredentials != null;
                     mDebtFactory = DebtFactory.load(SaveSharedPreference.getDeployedContractAddress(getContext())
                             , web3j, mCredentials, new DefaultGasProvider());
                     mAdapter.notifyDataSetChanged();
@@ -227,6 +233,83 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
             } catch (Exception e) {
                 Log.e(TAG, "onActivityCreated: deploy", e);
             }
+        }
+
+        requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                assert getActivity() != null;
+                getActivity().finish();
+            }
+        });
+
+//        mDebts = new ArrayList<>();
+        if (mDebtFactory != null && mDebts.isEmpty()){
+            CompletableFuture<List> deplyedDebts = mDebtFactory.getDeployedDebts().sendAsync();
+            new Thread(() -> {
+                try {
+                    List debts = deplyedDebts.get();
+                    assert getActivity() != null;
+                    getActivity().runOnUiThread(() -> {
+                        Log.i(TAG, "onActivityCreated: deployed debts = "  + debts.size());
+                        if (debts.size() == 0){
+                            Snackbar.make(this.getView().getRootView(), "No Debts Deplyed Yet", BaseTransientBottomBar.LENGTH_LONG).show();
+                            progressBar.setVisibility(View.GONE);
+                        }
+                        for (int i = 0; i < debts.size(); i++) {
+                            String debtAddress = (String) debts.get(i);
+                            Debt debt = Debt.load(debtAddress, web3j, mCredentials, new DefaultGasProvider());
+                            String lender = "", borrower = "", description = "";
+                            BigInteger amount = BigInteger.ZERO;
+                            Boolean status = false;
+                            try {
+                                Tuple5 debtDetails = debt.getDetails().sendAsync().get();
+                                lender = (String) debtDetails.component1();
+                                borrower = (String) debtDetails.component2();
+                                amount = (BigInteger) debtDetails.component3();
+                                description = (String) debtDetails.component4();
+                                status = (Boolean) debtDetails.component5();
+                            }catch (Exception e){
+                                e.printStackTrace();
+                            }
+
+                            double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
+                            DebtPOJO tempDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
+                            tempDebt.setAddress(debtAddress);
+                            mDebts.add(tempDebt);
+                        }
+                        if (!mDebts.isEmpty()){
+                            mAdapter.updateDebtsList(mDebts);
+                            mAdapter.notifyDataSetChanged();
+                            progressBar.setVisibility(View.GONE);
+                            createFap.setVisibility(View.VISIBLE);
+                        }
+                    });
+                }catch (Exception e){
+                    Log.e(TAG, "onActivityCreated: fetching debts", e);
+                }
+            }).start();
+        } else {
+            mAdapter.updateDebtsList(mDebts);
+            mAdapter.notifyDataSetChanged();
+            progressBar.setVisibility(View.GONE);
+            createFap.setVisibility(View.VISIBLE);
+        }
+
+        recyclerView.setAdapter(mAdapter);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+        recyclerView.setLayoutManager(layoutManager);
+
+
+        createFap.setOnClickListener(v -> {
+            mDebts.clear();
+            Bundle bundle = new Bundle();
+            bundle.putString("priKey", mPrivateKey);
+            mNavController.navigate(R.id.create_dest, bundle);
+        });
+
+        if (!mDebts.isEmpty()){
+            progressBar.setVisibility(View.GONE);
         }
 
     }
@@ -241,25 +324,12 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         debtBundle.putString("description", currentDebt.getDescription());
         debtBundle.putBoolean("status", currentDebt.isSettled());
         debtBundle.putString("address", currentDebt.getAddress());
+        debtBundle.putString("priKey", mPrivateKey);
+        mNavController.popBackStack();
         mNavController.navigate(R.id.details_dest, debtBundle);
     }
 
-    private void updateUI(CompletableFuture<DebtFactory> completableFuture){
-        new Thread(() -> {
-            try {
-                DebtFactory debtFactory = completableFuture.get();
-                if (debtFactory.isValid()) {
-                    assert getActivity() != null;
-                    getActivity().runOnUiThread(() -> {
-                        progressBar.setVisibility(View.GONE);
-                        mDebtFactory = debtFactory;
-                        mAdapter.notifyDataSetChanged();
-                    });
-                }
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }).start();
+    public String getPrivateKey() {
+        return mPrivateKey;
     }
-
 }

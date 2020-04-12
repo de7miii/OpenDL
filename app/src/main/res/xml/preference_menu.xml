@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:title="Keys"
+        android:summary="User public and private keys">
+        <EditTextPreference
+            android:title="Public Key"
+            app:key="pubKey"/>
+
+        <EditTextPreference
+            android:title="Private Key"
+            app:key="priKey"/>
+
+    </PreferenceCategory>
+
+    <Preference
+        app:key="logOut"
+        app:title="Log Out"/>
+
+</PreferenceScreen>
