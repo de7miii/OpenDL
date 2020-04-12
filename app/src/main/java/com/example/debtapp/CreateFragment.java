@@ -3,10 +3,12 @@ package com.example.debtapp;
 
 import android.app.Activity;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
@@ -29,24 +31,35 @@ import com.example.debtapp.Utils.SaveSharedPreference;
 import com.google.android.material.textfield.TextInputLayout;
 
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.RawTransaction;
+import org.web3j.crypto.TransactionEncoder;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.request.EthFilter;
+import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthAccounts;
+import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
+import org.web3j.protocol.core.methods.response.EthSendRawTransaction;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
 import org.web3j.tx.ClientTransactionManager;
+import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.TransactionManager;
+import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
+import org.web3j.utils.Numeric;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -110,7 +123,7 @@ public class CreateFragment extends Fragment {
             }
         }
 
-        mCredentials = Credentials.create(mPrivateKey);;
+        mCredentials = Credentials.create(mPrivateKey);
 
         try {
             if (SaveSharedPreference.getDeployedContractAddress(getContext()).equals("null")) {
@@ -142,6 +155,7 @@ public class CreateFragment extends Fragment {
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -167,11 +181,18 @@ public class CreateFragment extends Fragment {
             new Thread(() -> {
                 try {
                     TransactionReceipt receipt = call.get();
+                    if (receipt.isStatusOK()){
+                        TransactionReceipt etherReceipt = Transfer.sendFunds(web3j,
+                                mCredentials,
+                                borrowerAddress,
+                                BigDecimal.valueOf(amount),
+                                Convert.Unit.WEI).send();
+                        assert etherReceipt.isStatusOK();
+                    }
                     List<DebtFactory.ContractCreatedEventResponse> events = mDebtFactory.getContractCreatedEvents(receipt);
                     Log.i(TAG, "updateUI: event test: " + events.get(0).newAddress + "\t" + events.get(0).log.getAddress());
                     Log.i(TAG, "updateUI: " + receipt.getFrom() + "\n" + receipt.getTransactionHash());
                     newDebt.setLender(receipt.getFrom());
-
                     Bundle debtBundle = new Bundle();
                     debtBundle.putString("address", events.get(0).newAddress);
                     if (receipt.isStatusOK()) {
@@ -183,7 +204,7 @@ public class CreateFragment extends Fragment {
                         });
                     }
                 }catch (Exception e){
-                    e.printStackTrace();
+                    Log.e(TAG, "onViewCreated: ", e);
                 }
             }).start();
         });

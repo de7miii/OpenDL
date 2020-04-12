@@ -1,5 +1,7 @@
 package com.example.debtapp;
 
+import android.util.Log;
+
 import com.example.debtapp.Contracts.Debt;
 import com.example.debtapp.Contracts.DebtFactory;
 
@@ -7,17 +9,27 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.RawTransaction;
+import org.web3j.crypto.TransactionEncoder;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.EthAccounts;
+import org.web3j.protocol.core.methods.response.EthGetBalance;
+import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
+import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
 import org.web3j.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
+import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
+import org.web3j.utils.Numeric;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +39,7 @@ import java.util.List;
  * local unit test, which will execute on the development machine (host).
  */
 public class UnitTests {
+    private String TAG = UnitTests.class.getSimpleName();
 
     private Web3j web3j = Web3j.build(new HttpService("HTTP://192.168.43.183:7545"));
     private List<String> mAccounts = new ArrayList<>();
@@ -111,6 +124,30 @@ public class UnitTests {
             debtInfo = debt.getDetails().send();
             assertEquals("Expected Debt Status After Settling is Wrong", true, debtInfo.component5());
 
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void sendEther_test(){
+        Credentials credentials = Credentials.create("0x3f30d2588cad03f8557c936db0e3af06afab6557a8af27f34a0c5f0993be09e3");
+        try {
+            EthGetBalance ethGetBalance = web3j.ethGetBalance(mAccounts.get(1), DefaultBlockParameterName.LATEST).send();
+            BigInteger balanceOld = ethGetBalance.getBalance();
+            System.out.println("old balance: " + balanceOld);
+            TransactionReceipt receipt = Transfer.sendFunds(web3j,
+                    credentials,
+                    mAccounts.get(1),
+                    BigDecimal.valueOf(2),
+                    Convert.Unit.ETHER).send();
+            ethGetBalance = web3j.ethGetBalance(mAccounts.get(1), DefaultBlockParameterName.LATEST).send();
+            BigInteger balanceNew = ethGetBalance.getBalance();
+            assertNotEquals(balanceOld, balanceNew);
+            System.out.println("new Balance: " + balanceNew);
+            assertEquals(balanceNew.compareTo(balanceOld), 1);
+            assertNotNull(receipt);
+            assertTrue(receipt.isStatusOK());
         }catch (Exception e){
             e.printStackTrace();
         }
