@@ -24,11 +24,6 @@
         android:name="com.example.debtapp.CreateFragment"
         android:label="fragment_create"
         tools:layout="@layout/fragment_create" />
-    <fragment
-        android:id="@+id/profile_dest"
-        android:name="com.example.debtapp.ProfileFragment"
-        android:label="fragment_profile"
-        tools:layout="@layout/fragment_profile" />
     <navigation
         android:id="@+id/login_navigation"
         app:startDestination="@id/login_dest" >
@@ -36,20 +31,7 @@
             android:id="@+id/login_dest"
             android:name="com.example.debtapp.LoginFragment"
             android:label="fragment_login"
-            tools:layout="@layout/fragment_login" >
-            <action
-                android:id="@+id/action_logintosignup"
-                app:destination="@id/signup_dest" />
-        </fragment>
-        <fragment
-            android:id="@+id/signup_dest"
-            android:name="com.example.debtapp.SignupFragment"
-            android:label="fragment_signup"
-            tools:layout="@layout/fragment_signup" >
-            <action
-                android:id="@+id/action_signuptologin"
-                app:destination="@id/login_dest" />
-        </fragment>
+            tools:layout="@layout/fragment_login" />
         <action
             android:id="@+id/action_logintohome"
             app:destination="@id/home_dest" />

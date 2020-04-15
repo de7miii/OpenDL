@@ -1,10 +1,14 @@
 package com.example.debtapp;
 
 import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
@@ -13,14 +17,11 @@ import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
-
+import com.example.debtapp.Utils.GenerateQrCode;
 import com.example.debtapp.Utils.SaveSharedPreference;
 import com.example.debtapp.ViewModels.LoginViewModel;
+
+import org.web3j.crypto.WalletUtils;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -33,7 +34,6 @@ public class SettingFragment extends PreferenceFragmentCompat {
     private String mPrivateKey;
     private String mPublicKey;
 
-    private EditTextPreference publicKeyPref;
     private EditTextPreference privateKeyPref;
 
     private LoginViewModel mLoginViewModel;
@@ -62,7 +62,6 @@ public class SettingFragment extends PreferenceFragmentCompat {
         mPrivateKey = getArguments().getString("priKey");
         mPublicKey = getArguments().getString("pubKey");
 
-        publicKeyPref = findPreference("pubKey");
         privateKeyPref = findPreference("priKey");
         if (privateKeyPref != null){
             privateKeyPref.setText(mPrivateKey);
@@ -82,10 +81,6 @@ public class SettingFragment extends PreferenceFragmentCompat {
                 }
             });
         }
-        if (publicKeyPref != null){
-            publicKeyPref.setText(mPublicKey);
-            publicKeyPref.setEnabled(false);
-        }
         Preference logOutPref = findPreference("logOut");
         assert logOutPref != null;
         logOutPref.setOnPreferenceClickListener(preference -> {
@@ -101,6 +96,31 @@ public class SettingFragment extends PreferenceFragmentCompat {
             }
             return false;
         });
+
+        Preference publickKeyPref = findPreference("pubKey");
+        assert publickKeyPref != null;
+        publickKeyPref.setOnPreferenceClickListener(pref -> {
+            assert getContext() != null;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setTitle("Public Key");
+
+            ImageView qrCodeImg = new ImageView(getContext());
+            qrCodeImg.setMinimumWidth(400);
+            qrCodeImg.setMinimumHeight(400);
+
+            if (WalletUtils.isValidAddress(mPublicKey)) {
+                GenerateQrCode.generateQRCode(mPublicKey, qrCodeImg);
+            }
+
+            builder.setView(qrCodeImg);
+            builder.setPositiveButton("OK", (dialog, which) -> {
+               dialog.cancel();
+            });
+
+            builder.show();
+            return false;
+        });
+
         setHasOptionsMenu(false);
     }
 

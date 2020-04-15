@@ -2,6 +2,16 @@ package com.example.debtapp;
 
 
 import android.os.Bundle;
+import android.text.InputType;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -11,48 +21,23 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
-import android.text.InputType;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ProgressBar;
-import android.widget.Spinner;
-import android.widget.TextView;
-
 import com.example.debtapp.Contracts.Debt;
+import com.example.debtapp.Utils.GenerateQrCode;
 import com.example.debtapp.Utils.SaveSharedPreference;
 import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Keys;
-import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.core.RemoteFunctionCall;
-import org.web3j.protocol.core.methods.response.EthAccounts;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
-import org.web3j.tuples.generated.Tuple5;
-import org.web3j.tx.ClientTransactionManager;
-import org.web3j.tx.TransactionManager;
+import org.web3j.tuples.generated.Tuple6;
 import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
-import org.web3j.utils.Numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.security.Key;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -78,12 +63,17 @@ public class DetailsFragment extends Fragment {
     Button settleBtn;
     @BindView(R.id.progress_circular)
     ProgressBar progressBar;
+    @BindView(R.id.txhash_qrcode_img)
+    ImageView txHashQrCodeImg;
+    @BindView(R.id.address_qrcode_img)
+    ImageView addressQrCodeImg;
 
     private DebtPOJO mDebt;
     private Web3j web3j = Web3j.build(new HttpService("https://rinkeby.infura.io/v3/257f79e9b33946abb69bd1adb3e108e4"));
     private Debt mDebtContract = null;
     private  String mPrivateKey;
     private Credentials mCredentials;
+    private String mUnit = "ETHER";
 
     private NavController mNavController;
     // TODO: 3/27/2020 add a QRCode with the contract address
@@ -102,6 +92,10 @@ public class DetailsFragment extends Fragment {
                 mPrivateKey = getArguments().getString("priKey");
                 Log.i(TAG, "onCreate: new private key: " + mPrivateKey);
             }
+            if (getArguments().containsKey("unit")){
+                mUnit = getArguments().getString("unit");
+                Log.i(TAG, "onCreate: Selected unit" + mUnit);
+            }
         }
 
         if (mPrivateKey == null){
@@ -116,23 +110,25 @@ public class DetailsFragment extends Fragment {
         assert getArguments() != null;
         mDebtContract = Debt.load(getArguments().getString("address"), web3j, mCredentials, new DefaultGasProvider());
         new Thread(() -> {
-            String lender = "", borrower = "", description = "";
+            String lender = "", borrower = "", description = "", txHash = "";
             BigInteger amount = BigInteger.ZERO;
             Boolean status = false;
             try {
-                Tuple5 debtDetails = mDebtContract.getDetails().sendAsync().get();
+                Tuple6 debtDetails = mDebtContract.getDetails().sendAsync().get();
                 lender = (String) debtDetails.component1();
                 borrower = (String) debtDetails.component2();
                 amount = (BigInteger) debtDetails.component3();
                 description = (String) debtDetails.component4();
                 status = (Boolean) debtDetails.component5();
+                txHash = (String) debtDetails.component6();
             }catch (Exception e){
                 e.printStackTrace();
             }
             Log.i(TAG, "onCreate: " + description + " " + status);
-            double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
+            double amountInEther = Convert.toWei(amount.toString(), Convert.Unit.ETHER).doubleValue();
             mDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
             mDebt.setAddress(getArguments().getString("address"));
+            mDebt.setTxHash(getArguments().getString("txHash").equals(txHash)? txHash: "null");
             assert getActivity() != null;
             getActivity().runOnUiThread(() -> {
                 if (mDebt != null){
@@ -140,13 +136,19 @@ public class DetailsFragment extends Fragment {
                     borrowerTextView.setText(mDebt.getBorrower());
                     descriptionTextView.setText(mDebt.getDescription());
                     StringBuilder amountString = new StringBuilder();
-                    amountString.append(mDebt.getAmount()).append(" WEI");
+                    amountString.append(mDebt.getAmount()).append(" ").append("WEI");
                     amountTextView.setText(amountString.toString());
                     statusTextView.setText(String.valueOf(mDebt.isSettled()));
                     if (mDebt.isSettled()){
                         settleBtn.setEnabled(false);
                     }else{
                         settleBtn.setEnabled(true);
+                    }
+                    if (mDebt.getTxHash() != null && !mDebt.getTxHash().isEmpty()){
+                        GenerateQrCode.generateQRCode(mDebt.getTxHash(), txHashQrCodeImg);
+                    }
+                    if (mDebt.getAddress() != null && !mDebt.getAddress().isEmpty()){
+                        GenerateQrCode.generateQRCode(mDebt.getAddress(), addressQrCodeImg);
                     }
                 }
             });
@@ -180,6 +182,8 @@ public class DetailsFragment extends Fragment {
 
                 builder.setPositiveButton("OK", (dialog, which) -> {
                     progressBar.setVisibility(View.VISIBLE);
+                    settleBtn.setEnabled(false);
+
                     if (input.getText().toString().startsWith("0x")){
                         mPrivateKey = input.getText().toString();
                         mCredentials = Credentials.create(mPrivateKey);
@@ -190,19 +194,19 @@ public class DetailsFragment extends Fragment {
                     if (mCredentials.getAddress().equals(mDebt.getBorrower())){
                         Log.i(TAG, "onViewCreated: Settle Button: " + mCredentials.getAddress());
                         mDebtContract = Debt.load(mDebt.getAddress(), web3j, mCredentials, new DefaultGasProvider());
-                        int debtAmount = (int) mDebt.getAmount();
-                        CompletableFuture<TransactionReceipt> call = mDebtContract.settleDebt().sendAsync();
+                        BigDecimal debtAmount = BigDecimal.valueOf(mDebt.getAmount());
                         new Thread(() ->{
                             try {
-                                TransactionReceipt receipt = call.get();
-                                if (receipt.isStatusOK()){
-                                    TransactionReceipt etherReceipt = Transfer.sendFunds(web3j,
-                                            mCredentials,
-                                            mDebt.getLender(),
-                                            BigDecimal.valueOf(mDebt.getAmount()),
-                                            Convert.Unit.WEI).send();
-                                    assert etherReceipt.isStatusOK();
+                                TransactionReceipt receipt = null;
+                                TransactionReceipt etherReceipt = Transfer.sendFunds(web3j,
+                                        mCredentials,
+                                        mDebt.getLender(),
+                                        debtAmount,
+                                        Convert.Unit.WEI).send();
+                                if (etherReceipt.isStatusOK()) {
+                                    receipt = mDebtContract.settleDebt().send();
                                 }
+                                assert receipt != null;
                                 Log.i(TAG, "onViewCreated: transaction status: " + receipt.isStatusOK());
                                 assert getActivity() != null;
                                 getActivity().runOnUiThread(() -> {

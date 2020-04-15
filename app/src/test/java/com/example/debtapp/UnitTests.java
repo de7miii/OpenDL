@@ -22,6 +22,7 @@ import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tuples.generated.Tuple6;
 import org.web3j.tx.ClientTransactionManager;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.Transfer;
@@ -78,7 +79,8 @@ public class UnitTests {
                     BigInteger.valueOf(1000000),
                     mAccounts.get(0),
                     mAccounts.get(1),
-                    "testing").send();
+                    "testing",
+                    "testing tx hash").send();
             assertTrue("Debt Contract Deployment Failed", debt.isValid());
         }catch (Exception e){
             e.printStackTrace();
@@ -92,7 +94,7 @@ public class UnitTests {
             DebtFactory factory = DebtFactory.deploy(web3j, manager, new DefaultGasProvider()).send();
             assertTrue("DebtFactory Contract Deployment Failed", factory.isValid());
             TransactionReceipt receipt = factory.createDebt(Convert.toWei("2", Convert.Unit.ETHER).toBigInteger(),
-                    mAccounts.get(1), "testing").send();
+                    mAccounts.get(1), "testing", "testing tx hash").send();
             assertTrue("Debt Contract Creation From DebtFactory Failed", receipt.isStatusOK());
 
             List<DebtFactory.ContractCreatedEventResponse> events = factory.getContractCreatedEvents(receipt);
@@ -102,7 +104,7 @@ public class UnitTests {
             assertEquals("Deployed Debt address is invalid", deployedDebtFromFactory, deployedDebtFromEventsLog);
 
             Debt debt = Debt.load(deployedDebtFromFactory, web3j, manager, new DefaultGasProvider());
-            Tuple5 debtInfo = debt.getDetails().send();
+            Tuple6 debtInfo = debt.getDetails().send();
 
             assertNotNull("Failed to get debt contract info", debtInfo);
             assertNotNull("Failed to get lender address", debtInfo.component1());
@@ -110,12 +112,14 @@ public class UnitTests {
             assertNotNull("Failed to get debt amount", debtInfo.component3());
             assertNotNull("Failed to get debt description", debtInfo.component4());
             assertNotNull("Failed to get debt status", debtInfo.component5());
+            assertNotNull("Failed to get debt txHash", debtInfo.component6());
 
             assertEquals("Expected Lender Address is Wrong", mAccounts.get(0), debtInfo.component1());
             assertEquals("Expected Borrower Address is Wrong", mAccounts.get(1), debtInfo.component2());
             assertEquals("Expected Amount is Wrong", Convert.toWei("2", Convert.Unit.ETHER).toBigInteger(), debtInfo.component3());
             assertEquals("Expected Description is Wrong", "testing", debtInfo.component4());
             assertEquals("Expected Debt Status is Wrong", false, debtInfo.component5());
+            assertEquals("Expected Debt Tx Hash is Wrong", "testing tx hash", debtInfo.component6());
 
             TransactionManager borrowerManager = new ClientTransactionManager(web3j, mAccounts.get(1));
 

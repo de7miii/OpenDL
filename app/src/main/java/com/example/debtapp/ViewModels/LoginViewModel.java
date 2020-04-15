@@ -11,6 +11,9 @@ import androidx.lifecycle.MutableLiveData;
 import com.example.debtapp.Utils.AuthenticationState;
 import com.example.debtapp.Utils.SaveSharedPreference;
 
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.WalletUtils;
+
 public class LoginViewModel extends AndroidViewModel {
 
     public final MutableLiveData<AuthenticationState> authenticateState = new MediatorLiveData<>();
@@ -20,8 +23,8 @@ public class LoginViewModel extends AndroidViewModel {
         authenticateState.setValue(AuthenticationState.UNAUTHENTICATED);
     }
 
-    public void authenticate(String username, String password){
-        if (passwordIsValidForUsername(username, password)){
+    public void authenticate(String privateKey){
+        if (WalletUtils.isValidPrivateKey(privateKey)){
             authenticateState.setValue(AuthenticationState.AUTHENTICATED);
         }else {
             authenticateState.setValue(AuthenticationState.INVALID_AUTHENTICATION);

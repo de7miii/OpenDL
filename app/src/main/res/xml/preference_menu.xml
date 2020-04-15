@@ -5,7 +5,7 @@
     <PreferenceCategory
         android:title="Keys"
         android:summary="User public and private keys">
-        <EditTextPreference
+        <Preference
             android:title="Public Key"
             app:key="pubKey"/>
 

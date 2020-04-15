@@ -7,6 +7,7 @@ public class DebtPOJO {
     private double mAmount;
     private boolean mStatus;
     private String mAddress;
+    private String mTxHash;
 
     public DebtPOJO() {
     }
@@ -65,5 +66,13 @@ public class DebtPOJO {
 
     public void setAddress(String address) {
         mAddress = address;
+    }
+
+    public String getTxHash() {
+        return mTxHash;
+    }
+
+    public void setTxHash(String txHash) {
+        mTxHash = txHash;
     }
 }

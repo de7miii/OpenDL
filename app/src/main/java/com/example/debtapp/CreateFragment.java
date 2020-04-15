@@ -2,73 +2,44 @@ package com.example.debtapp;
 
 
 import android.app.Activity;
-import android.os.AsyncTask;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.ProgressBar;
-import android.widget.Spinner;
-
-import com.example.debtapp.Contracts.Debt;
 import com.example.debtapp.Contracts.DebtFactory;
 import com.example.debtapp.Utils.SaveSharedPreference;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputLayout;
 
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.RawTransaction;
-import org.web3j.crypto.TransactionEncoder;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.core.DefaultBlockParameter;
-import org.web3j.protocol.core.DefaultBlockParameterName;
-import org.web3j.protocol.core.RemoteFunctionCall;
-import org.web3j.protocol.core.methods.request.EthFilter;
-import org.web3j.protocol.core.methods.request.Transaction;
-import org.web3j.protocol.core.methods.response.EthAccounts;
-import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
-import org.web3j.protocol.core.methods.response.EthSendRawTransaction;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
-import org.web3j.tuples.generated.Tuple5;
-import org.web3j.tx.ClientTransactionManager;
-import org.web3j.tx.RawTransactionManager;
-import org.web3j.tx.TransactionManager;
 import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
-import org.web3j.utils.Numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
-import butterknife.Action;
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import io.reactivex.Flowable;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 
 
 /**
@@ -87,6 +58,8 @@ public class CreateFragment extends Fragment {
     TextInputLayout descriptionTextInput;
     @BindView(R.id.create_debt_btn)
     Button createBtn;
+    @BindView(R.id.scanQr_button)
+    MaterialButton scanQrBtn;
     @BindView(R.id.progress_bar)
     ProgressBar progressBar;
 
@@ -95,6 +68,7 @@ public class CreateFragment extends Fragment {
     private Web3j web3j = Web3j.build(new HttpService("https://rinkeby.infura.io/v3/257f79e9b33946abb69bd1adb3e108e4"));
     private String mPrivateKey;
     private Credentials mCredentials;
+    private String mUnitString = "WEI";
 
     private DebtPOJO newDebt;
 
@@ -155,11 +129,32 @@ public class CreateFragment extends Fragment {
 
     }
 
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 2){
+            if (resultCode == Activity.RESULT_OK){
+                assert data != null;
+                String qrResult;
+                qrResult = data.getStringExtra(ScanQrActivity.QR_CODE_RESULT);
+                if (WalletUtils.isValidAddress(qrResult)){
+                    assert borrowerTextInput.getEditText() != null;
+                    borrowerTextInput.getEditText().setText(qrResult);
+                }
+            }
+        }
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mNavController = Navigation.findNavController(view);
+
+        scanQrBtn.setOnClickListener(v -> {
+            Intent scanIntent = new Intent(getContext(), ScanQrActivity.class);
+            startActivityForResult(scanIntent, 2);
+        });
 
         createBtn.setOnClickListener(v -> {
             progressBar.setVisibility(View.VISIBLE);
@@ -177,26 +172,34 @@ public class CreateFragment extends Fragment {
             assert descriptionTextInput.getEditText() != null;
             String description = descriptionTextInput.getEditText().getText().toString();
             newDebt.setDescription(description);
-            CompletableFuture<TransactionReceipt> call = mDebtFactory.createDebt(BigInteger.valueOf(amount), borrowerAddress, description).sendAsync();
+
             new Thread(() -> {
                 try {
-                    TransactionReceipt receipt = call.get();
-                    if (receipt.isStatusOK()){
-                        TransactionReceipt etherReceipt = Transfer.sendFunds(web3j,
-                                mCredentials,
-                                borrowerAddress,
-                                BigDecimal.valueOf(amount),
-                                Convert.Unit.WEI).send();
-                        assert etherReceipt.isStatusOK();
+                    TransactionReceipt receipt = null;
+                    CompletableFuture<TransactionReceipt> call = Transfer.sendFunds(web3j,
+                            mCredentials,
+                            borrowerAddress,
+                            BigDecimal.valueOf(amount),
+                            Convert.Unit.ETHER).sendAsync();
+                    TransactionReceipt etherReceipt = call.get();
+                    if (etherReceipt.isStatusOK()){
+                        String txHash = etherReceipt.getTransactionHash();
+                        Log.i(TAG, "onViewCreated: Tx hash: " + txHash);
+                        receipt = mDebtFactory.createDebt(BigInteger.valueOf(amount),
+                                borrowerAddress, description, txHash).send();
                     }
+                    assert receipt != null;
                     List<DebtFactory.ContractCreatedEventResponse> events = mDebtFactory.getContractCreatedEvents(receipt);
                     Log.i(TAG, "updateUI: event test: " + events.get(0).newAddress + "\t" + events.get(0).log.getAddress());
                     Log.i(TAG, "updateUI: " + receipt.getFrom() + "\n" + receipt.getTransactionHash());
                     newDebt.setLender(receipt.getFrom());
                     Bundle debtBundle = new Bundle();
                     debtBundle.putString("address", events.get(0).newAddress);
+                    debtBundle.putString("txHash", receipt.getTransactionHash());
+                    debtBundle.putString("unit", mUnitString);
                     if (receipt.isStatusOK()) {
                         assert getActivity() != null;
+                        Thread.yield();
                         getActivity().runOnUiThread(() -> {
                             progressBar.setVisibility(View.GONE);
                             mNavController.popBackStack();

@@ -1,23 +1,7 @@
 package com.example.debtapp;
 
 
-import android.content.DialogInterface;
 import android.os.Bundle;
-
-import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -25,8 +9,18 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.ProgressBar;
+
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.debtapp.Adapters.HomeAdapter;
 import com.example.debtapp.Contracts.Debt;
@@ -34,7 +28,6 @@ import com.example.debtapp.Contracts.DebtFactory;
 import com.example.debtapp.Utils.RegistrationState;
 import com.example.debtapp.Utils.SaveSharedPreference;
 import com.example.debtapp.ViewModels.LoginViewModel;
-import com.example.debtapp.ViewModels.SignupViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
@@ -42,7 +35,7 @@ import com.google.android.material.snackbar.Snackbar;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.http.HttpService;
-import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tuples.generated.Tuple6;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
 
@@ -63,7 +56,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
 
     private NavController mNavController;
     private LoginViewModel mLoginViewModel;
-    private SignupViewModel mSignupViewModel;
 
     @BindView(R.id.rv_home)
     RecyclerView recyclerView;
@@ -82,7 +74,7 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     private Credentials mCredentials;
     private Web3j web3j = Web3j.build(new HttpService("https://rinkeby.infura.io/v3/257f79e9b33946abb69bd1adb3e108e4"));
 
-    private MutableLiveData<Boolean> logingStatus = new MutableLiveData<>();
+    private MutableLiveData<Boolean> deployStatus = new MutableLiveData<>();
 
     public HomeFragment() {
         // Required empty public constructor
@@ -92,10 +84,10 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mLoginViewModel = new ViewModelProvider(requireActivity()).get(LoginViewModel.class);
-        mSignupViewModel = new ViewModelProvider(requireActivity()).get(SignupViewModel.class);
         setHasOptionsMenu(true);
 
         Log.i(TAG, "onCreate: Saved Address" + SaveSharedPreference.getDeployedContractAddress(getContext()));
+        deployStatus.setValue(false);
 
         mAdapter = new HomeAdapter(getContext(), this);
         mDebts = new ArrayList<>();
@@ -126,8 +118,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         ButterKnife.bind(this, view);
-        createFap.setVisibility(View.INVISIBLE);
-
         return view;
     }
 
@@ -136,18 +126,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-
-//
-//        logoutBtn.setOnClickListener(v -> {
-//            if (SaveSharedPreference.isLoggedIn(getContext())){
-//                mLoginViewModel.logOut(getContext());
-//                mNavController.popBackStack(R.id.home_dest, false);
-//                requireActivity().finish();
-//            }else {
-//                mNavController.popBackStack(R.id.home_dest, false);
-//                requireActivity().finish();
-//            }
-//        });
     }
 
     @Override
@@ -160,15 +138,21 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                 switch (authenticationState){
                     case UNAUTHENTICATED:
                         SaveSharedPreference.setLoginStatus(getContext(), false);
+                        mNavController.popBackStack();
                         mNavController.navigate(R.id.action_hometologin);
                         break;
                     case AUTHENTICATED:
-                        mSignupViewModel.registrationState.setValue(RegistrationState.REGISTRED);
                         SaveSharedPreference.setLoginStatus(getContext(), true);
                         break;
                 }
             });
         }
+
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
 
         if (mPrivateKey == null){
             mPrivateKey = SaveSharedPreference.getPrivateKey(getContext());
@@ -194,8 +178,6 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
             mNavController.navigate(R.id.action_hometologin);
         }
 
-        progressBar.setVisibility(View.VISIBLE);
-
     }
 
     @Override
@@ -211,14 +193,19 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                     new Thread(() -> {
                         try {
                             mDebtFactory = factoryCompletableFuture.get();
-                            assert getActivity() != null;
-                            getActivity().runOnUiThread(() -> {
-                                assert mDebtFactory != null;
-                                SaveSharedPreference.setDeployedContractAddress(getContext(), mDebtFactory.getContractAddress());
-                                mAdapter.notifyDataSetChanged();
-                                assert getView() != null;
-                                Snackbar.make(getView().getRootView(), "Contract Deplyed at: " + mDebtFactory.getContractAddress(), BaseTransientBottomBar.LENGTH_LONG).show();
-                            });
+                            if (mDebtFactory.isValid()) {
+                                assert getActivity() != null;
+                                getActivity().runOnUiThread(() -> {
+                                    deployStatus.setValue(true);
+                                    assert mDebtFactory != null;
+                                    SaveSharedPreference.setDeployedContractAddress(getContext(), mDebtFactory.getContractAddress());
+                                    mAdapter.notifyDataSetChanged();
+                                    assert getView() != null;
+                                    Snackbar.make(getView(), "Contract Deplyed at: " + mDebtFactory.getContractAddress(), BaseTransientBottomBar.LENGTH_LONG).show();
+                                    createFap.setVisibility(View.VISIBLE);
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                });
+                            }
                         }catch (Exception e){
                             Log.e(TAG, "onCreateView: ", e);
                         }
@@ -228,6 +215,13 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                     assert mCredentials != null;
                     mDebtFactory = DebtFactory.load(SaveSharedPreference.getDeployedContractAddress(getContext())
                             , web3j, mCredentials, new DefaultGasProvider());
+                    try {
+                        if (mDebtFactory.isValid()) {
+                            deployStatus.setValue(true);
+                        }
+                    }catch (Exception e){
+                        Log.e(TAG, "onResume: ", e);
+                    }
                     mAdapter.notifyDataSetChanged();
                 }
             } catch (Exception e) {
@@ -250,25 +244,29 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                 try {
                     List debts = deplyedDebts.get();
                     assert getActivity() != null;
+                    assert getView() != null;
                     getActivity().runOnUiThread(() -> {
                         Log.i(TAG, "onActivityCreated: deployed debts = "  + debts.size());
                         if (debts.size() == 0){
-                            Snackbar.make(this.getView().getRootView(), "No Debts Deplyed Yet", BaseTransientBottomBar.LENGTH_LONG).show();
+                            assert getView() != null;
+                            Snackbar.make(getView().getRootView(), "No Debts Deplyed Yet", BaseTransientBottomBar.LENGTH_SHORT).show();
                             progressBar.setVisibility(View.GONE);
+                            createFap.setVisibility(View.VISIBLE);
                         }
                         for (int i = 0; i < debts.size(); i++) {
                             String debtAddress = (String) debts.get(i);
                             Debt debt = Debt.load(debtAddress, web3j, mCredentials, new DefaultGasProvider());
-                            String lender = "", borrower = "", description = "";
+                            String lender = "", borrower = "", description = "", txHash ="";
                             BigInteger amount = BigInteger.ZERO;
                             Boolean status = false;
                             try {
-                                Tuple5 debtDetails = debt.getDetails().sendAsync().get();
+                                Tuple6 debtDetails = debt.getDetails().sendAsync().get();
                                 lender = (String) debtDetails.component1();
                                 borrower = (String) debtDetails.component2();
                                 amount = (BigInteger) debtDetails.component3();
                                 description = (String) debtDetails.component4();
                                 status = (Boolean) debtDetails.component5();
+                                txHash = (String) debtDetails.component6();
                             }catch (Exception e){
                                 e.printStackTrace();
                             }
@@ -276,6 +274,7 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
                             double amountInEther = Convert.fromWei(amount.toString(), Convert.Unit.WEI).doubleValue();
                             DebtPOJO tempDebt = new DebtPOJO(lender, borrower, description, amountInEther, status);
                             tempDebt.setAddress(debtAddress);
+                            tempDebt.setTxHash(txHash);
                             mDebts.add(tempDebt);
                         }
                         if (!mDebts.isEmpty()){
@@ -312,17 +311,23 @@ public class HomeFragment extends Fragment implements HomeAdapter.ItemClickListe
             progressBar.setVisibility(View.GONE);
         }
 
+        deployStatus.observe(getViewLifecycleOwner(), status -> {
+            if (status){
+                progressBar.setVisibility(View.INVISIBLE);
+                createFap.setVisibility(View.VISIBLE);
+            }else {
+                progressBar.setVisibility(View.VISIBLE);
+                createFap.setVisibility(View.INVISIBLE);
+            }
+        });
+
     }
 
     @Override
     public void onItemClickListener(int pos) {
         DebtPOJO currentDebt = mDebts.get(pos);
         Bundle debtBundle = new Bundle();
-        debtBundle.putDouble("amount", currentDebt.getAmount());
-        debtBundle.putString("borrower", currentDebt.getBorrower());
-        debtBundle.putString("lender", currentDebt.getLender());
-        debtBundle.putString("description", currentDebt.getDescription());
-        debtBundle.putBoolean("status", currentDebt.isSettled());
+        debtBundle.putString("txHash", currentDebt.getTxHash());
         debtBundle.putString("address", currentDebt.getAddress());
         debtBundle.putString("priKey", mPrivateKey);
         mNavController.popBackStack();

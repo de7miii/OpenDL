@@ -19,7 +19,7 @@ import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tuples.generated.Tuple6;
 import org.web3j.tx.Contract;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.ContractGasProvider;
@@ -35,7 +35,7 @@ import org.web3j.tx.gas.ContractGasProvider;
  */
 @SuppressWarnings("rawtypes")
 public class Debt extends Contract {
-    private static final String BINARY = "0x608060405234801561001057600080fd5b506040516108233803806108238339818101604052608081101561003357600080fd5b810190808051906020019092919080519060200190929190805190602001909291908051604051939291908464010000000082111561007157600080fd5b8382019150602082018581111561008757600080fd5b82518660018202830111640100000000821117156100a457600080fd5b8083526020830192505050908051906020019080838360005b838110156100d85780820151818401526020810190506100bd565b50505050905090810190601f1680156101055780820380516001836020036101000a031916815260200191505b5060405250505082600260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508360008190555081600160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555080600390805190602001906101ab9291906101d0565b506000600460006101000a81548160ff02191690831515021790555050505050610275565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061021157805160ff191683800117855561023f565b8280016001018555821561023f579182015b8281111561023e578251825591602001919060010190610223565b5b50905061024c9190610250565b5090565b61027291905b8082111561026e576000816000905550600101610256565b5090565b90565b61059f806102846000396000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c8063aa8c217c1161005b578063aa8c217c14610171578063aafb96b61461018f578063bcead63e14610199578063fbbf93a0146101e35761007d565b80637284e416146100825780637df1f1b914610105578063a7b5c52b1461014f575b600080fd5b61008a6102de565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100ca5780820151818401526020810190506100af565b50505050905090810190601f1680156100f75780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b61010d61037c565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6101576103a2565b604051808215151515815260200191505060405180910390f35b6101796103b5565b6040518082815260200191505060405180910390f35b6101976103bb565b005b6101a1610432565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6101eb610458565b604051808673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018481526020018060200183151515158152602001828103825284818151815260200191508051906020019080838360005b8381101561029f578082015181840152602081019050610284565b50505050905090810190601f1680156102cc5780820380516001836020036101000a031916815260200191505b50965050505050505060405180910390f35b60038054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156103745780601f1061034957610100808354040283529160200191610374565b820191906000526020600020905b81548152906001019060200180831161035757829003601f168201915b505050505081565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600460009054906101000a900460ff1681565b60005481565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461041557600080fd5b6001600460006101000a81548160ff021916908315150217905550565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600080600060606000600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff166000546003600460009054906101000a900460ff16818054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156105515780601f1061052657610100808354040283529160200191610551565b820191906000526020600020905b81548152906001019060200180831161053457829003601f168201915b5050505050915094509450945094509450909192939456fea26469706673582212208fedb38e60dc7adc56e03a3df55699ea2c6cff5ae4458c188a06673ea92302fc64736f6c63430006040033";
+    private static final String BINARY = "0x608060405234801561001057600080fd5b50604051610b2c380380610b2c833981810160405260a081101561003357600080fd5b810190808051906020019092919080519060200190929190805190602001909291908051604051939291908464010000000082111561007157600080fd5b8382019150602082018581111561008757600080fd5b82518660018202830111640100000000821117156100a457600080fd5b8083526020830192505050908051906020019080838360005b838110156100d85780820151818401526020810190506100bd565b50505050905090810190601f1680156101055780820380516001836020036101000a031916815260200191505b506040526020018051604051939291908464010000000082111561012857600080fd5b8382019150602082018581111561013e57600080fd5b825186600182028301116401000000008211171561015b57600080fd5b8083526020830192505050908051906020019080838360005b8381101561018f578082015181840152602081019050610174565b50505050905090810190601f1680156101bc5780820380516001836020036101000a031916815260200191505b5060405250505083600260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508460008190555082600160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550816003908051906020019061026292919061029f565b506000600460006101000a81548160ff021916908315150217905550806005908051906020019061029492919061029f565b505050505050610344565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106102e057805160ff191683800117855561030e565b8280016001018555821561030e579182015b8281111561030d5782518255916020019190600101906102f2565b5b50905061031b919061031f565b5090565b61034191905b8082111561033d576000816000905550600101610325565b5090565b90565b6107d9806103536000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c8063aafb96b61161005b578063aafb96b61461019a578063bcead63e146101a4578063eb2c89a3146101ee578063fbbf93a01461027157610088565b80637284e4161461008d5780637df1f1b914610110578063a7b5c52b1461015a578063aa8c217c1461017c575b600080fd5b6100956103d8565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100d55780820151818401526020810190506100ba565b50505050905090810190601f1680156101025780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b610118610476565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b61016261049c565b604051808215151515815260200191505060405180910390f35b6101846104af565b6040518082815260200191505060405180910390f35b6101a26104b5565b005b6101ac61052c565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6101f6610552565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561023657808201518184015260208101905061021b565b50505050905090810190601f1680156102635780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6102796105f0565b604051808773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001858152602001806020018415151515815260200180602001838103835286818151815260200191508051906020019080838360005b83811015610331578082015181840152602081019050610316565b50505050905090810190601f16801561035e5780820380516001836020036101000a031916815260200191505b50838103825284818151815260200191508051906020019080838360005b8381101561039757808201518184015260208101905061037c565b50505050905090810190601f1680156103c45780820380516001836020036101000a031916815260200191505b509850505050505050505060405180910390f35b60038054600181600116156101000203166002900480601f01602080910402602001604051908101604052809291908181526020018280546001816001161561010002031660029004801561046e5780601f106104435761010080835404028352916020019161046e565b820191906000526020600020905b81548152906001019060200180831161045157829003601f168201915b505050505081565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600460009054906101000a900460ff1681565b60005481565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461050f57600080fd5b6001600460006101000a81548160ff021916908315150217905550565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60058054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156105e85780601f106105bd576101008083540402835291602001916105e8565b820191906000526020600020905b8154815290600101906020018083116105cb57829003601f168201915b505050505081565b6000806000606060006060600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff166000546003600460009054906101000a900460ff166005828054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156106ed5780601f106106c2576101008083540402835291602001916106ed565b820191906000526020600020905b8154815290600101906020018083116106d057829003601f168201915b50505050509250808054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156107895780601f1061075e57610100808354040283529160200191610789565b820191906000526020600020905b81548152906001019060200180831161076c57829003601f168201915b5050505050905095509550955095509550955090919293949556fea265627a7a723158205cc51c8d7db82fb39247e7141ed98220ed8d90a9b1b0a41460e3e325eb551f4264736f6c63430005100032";
 
     public static final String FUNC_AMOUNT = "amount";
 
@@ -46,6 +46,8 @@ public class Debt extends Contract {
     public static final String FUNC_IS_SETTLED = "is_settled";
 
     public static final String FUNC_LENDER = "lender";
+
+    public static final String FUNC_TXHASH = "txHash";
 
     public static final String FUNC_SETTLEDEBT = "settleDebt";
 
@@ -110,6 +112,13 @@ public class Debt extends Contract {
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
+    public RemoteFunctionCall<String> txHash() {
+        final Function function = new Function(FUNC_TXHASH, 
+                Arrays.<Type>asList(), 
+                Arrays.<TypeReference<?>>asList(new TypeReference<Utf8String>() {}));
+        return executeRemoteCallSingleValueReturn(function, String.class);
+    }
+
     public RemoteFunctionCall<TransactionReceipt> settleDebt() {
         final Function function = new Function(
                 FUNC_SETTLEDEBT, 
@@ -118,21 +127,22 @@ public class Debt extends Contract {
         return executeRemoteCallTransaction(function);
     }
 
-    public RemoteFunctionCall<Tuple5<String, String, BigInteger, String, Boolean>> getDetails() {
+    public RemoteFunctionCall<Tuple6<String, String, BigInteger, String, Boolean, String>> getDetails() {
         final Function function = new Function(FUNC_GETDETAILS, 
                 Arrays.<Type>asList(), 
-                Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}, new TypeReference<Address>() {}, new TypeReference<Uint256>() {}, new TypeReference<Utf8String>() {}, new TypeReference<Bool>() {}));
-        return new RemoteFunctionCall<Tuple5<String, String, BigInteger, String, Boolean>>(function,
-                new Callable<Tuple5<String, String, BigInteger, String, Boolean>>() {
+                Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}, new TypeReference<Address>() {}, new TypeReference<Uint256>() {}, new TypeReference<Utf8String>() {}, new TypeReference<Bool>() {}, new TypeReference<Utf8String>() {}));
+        return new RemoteFunctionCall<Tuple6<String, String, BigInteger, String, Boolean, String>>(function,
+                new Callable<Tuple6<String, String, BigInteger, String, Boolean, String>>() {
                     @Override
-                    public Tuple5<String, String, BigInteger, String, Boolean> call() throws Exception {
+                    public Tuple6<String, String, BigInteger, String, Boolean, String> call() throws Exception {
                         List<Type> results = executeCallMultipleValueReturn(function);
-                        return new Tuple5<String, String, BigInteger, String, Boolean>(
+                        return new Tuple6<String, String, BigInteger, String, Boolean, String>(
                                 (String) results.get(0).getValue(), 
                                 (String) results.get(1).getValue(), 
                                 (BigInteger) results.get(2).getValue(), 
                                 (String) results.get(3).getValue(), 
-                                (Boolean) results.get(4).getValue());
+                                (Boolean) results.get(4).getValue(), 
+                                (String) results.get(5).getValue());
                     }
                 });
     }
@@ -155,37 +165,41 @@ public class Debt extends Contract {
         return new Debt(contractAddress, web3j, transactionManager, contractGasProvider);
     }
 
-    public static RemoteCall<Debt> deploy(Web3j web3j, Credentials credentials, ContractGasProvider contractGasProvider, BigInteger _amount, String _lender, String _borrower, String _description) {
+    public static RemoteCall<Debt> deploy(Web3j web3j, Credentials credentials, ContractGasProvider contractGasProvider, BigInteger _amount, String _lender, String _borrower, String _description, String _txHash) {
         String encodedConstructor = FunctionEncoder.encodeConstructor(Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(_amount), 
                 new org.web3j.abi.datatypes.Address(_lender), 
                 new org.web3j.abi.datatypes.Address(_borrower), 
-                new org.web3j.abi.datatypes.Utf8String(_description)));
+                new org.web3j.abi.datatypes.Utf8String(_description), 
+                new org.web3j.abi.datatypes.Utf8String(_txHash)));
         return deployRemoteCall(Debt.class, web3j, credentials, contractGasProvider, BINARY, encodedConstructor);
     }
 
-    public static RemoteCall<Debt> deploy(Web3j web3j, TransactionManager transactionManager, ContractGasProvider contractGasProvider, BigInteger _amount, String _lender, String _borrower, String _description) {
+    public static RemoteCall<Debt> deploy(Web3j web3j, TransactionManager transactionManager, ContractGasProvider contractGasProvider, BigInteger _amount, String _lender, String _borrower, String _description, String _txHash) {
         String encodedConstructor = FunctionEncoder.encodeConstructor(Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(_amount), 
                 new org.web3j.abi.datatypes.Address(_lender), 
                 new org.web3j.abi.datatypes.Address(_borrower), 
-                new org.web3j.abi.datatypes.Utf8String(_description)));
+                new org.web3j.abi.datatypes.Utf8String(_description), 
+                new org.web3j.abi.datatypes.Utf8String(_txHash)));
         return deployRemoteCall(Debt.class, web3j, transactionManager, contractGasProvider, BINARY, encodedConstructor);
     }
 
     @Deprecated
-    public static RemoteCall<Debt> deploy(Web3j web3j, Credentials credentials, BigInteger gasPrice, BigInteger gasLimit, BigInteger _amount, String _lender, String _borrower, String _description) {
+    public static RemoteCall<Debt> deploy(Web3j web3j, Credentials credentials, BigInteger gasPrice, BigInteger gasLimit, BigInteger _amount, String _lender, String _borrower, String _description, String _txHash) {
         String encodedConstructor = FunctionEncoder.encodeConstructor(Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(_amount), 
                 new org.web3j.abi.datatypes.Address(_lender), 
                 new org.web3j.abi.datatypes.Address(_borrower), 
-                new org.web3j.abi.datatypes.Utf8String(_description)));
+                new org.web3j.abi.datatypes.Utf8String(_description), 
+                new org.web3j.abi.datatypes.Utf8String(_txHash)));
         return deployRemoteCall(Debt.class, web3j, credentials, gasPrice, gasLimit, BINARY, encodedConstructor);
     }
 
     @Deprecated
-    public static RemoteCall<Debt> deploy(Web3j web3j, TransactionManager transactionManager, BigInteger gasPrice, BigInteger gasLimit, BigInteger _amount, String _lender, String _borrower, String _description) {
+    public static RemoteCall<Debt> deploy(Web3j web3j, TransactionManager transactionManager, BigInteger gasPrice, BigInteger gasLimit, BigInteger _amount, String _lender, String _borrower, String _description, String _txHash) {
         String encodedConstructor = FunctionEncoder.encodeConstructor(Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(_amount), 
                 new org.web3j.abi.datatypes.Address(_lender), 
                 new org.web3j.abi.datatypes.Address(_borrower), 
-                new org.web3j.abi.datatypes.Utf8String(_description)));
+                new org.web3j.abi.datatypes.Utf8String(_description), 
+                new org.web3j.abi.datatypes.Utf8String(_txHash)));
         return deployRemoteCall(Debt.class, web3j, transactionManager, gasPrice, gasLimit, BINARY, encodedConstructor);
     }
 
