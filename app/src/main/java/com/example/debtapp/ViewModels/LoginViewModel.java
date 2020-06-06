@@ -31,11 +31,6 @@ public class LoginViewModel extends AndroidViewModel {
         }
     }
 
-    // TODO: 4/8/2020 implement a cloud database to store login credentials
-    private boolean passwordIsValidForUsername(String username, String password){
-        return true;
-    }
-
     public void refuseAuthentication(){
         authenticateState.setValue(AuthenticationState.UNAUTHENTICATED);
     }

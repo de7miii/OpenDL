@@ -25,7 +25,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.debtapp.Adapters.HomeAdapter;
 import com.example.debtapp.Contracts.Debt;
 import com.example.debtapp.Contracts.DebtFactory;
-import com.example.debtapp.Utils.RegistrationState;
 import com.example.debtapp.Utils.SaveSharedPreference;
 import com.example.debtapp.ViewModels.LoginViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
